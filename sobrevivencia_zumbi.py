@@ -273,3 +273,134 @@ class Botao:
     def foi_clicado(self, evento):
         return (evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1
                 and self.retangulo.collidepoint(evento.pos))
+
+# ----------------------------------------------------------------------
+# Funções auxiliares
+# ----------------------------------------------------------------------
+def carregar_imagens():
+    """Carrega e redimensiona os sprites e o cenário uma vez no início."""
+    imagem_fundo = pygame.image.load(
+        os.path.join(PASTA_ASSETS, 'background.png')
+    ).convert()
+    imagem_fundo = pygame.transform.smoothscale(
+        imagem_fundo, (LARGURA, ALTURA)
+    )
+
+    imagem_jogador = pygame.image.load(
+        os.path.join(PASTA_ASSETS, 'player.png')
+    ).convert_alpha()
+    imagem_jogador = pygame.transform.smoothscale(
+        imagem_jogador, (px(140), px(92))
+    )
+
+    imagem_zumbi = pygame.image.load(
+        os.path.join(PASTA_ASSETS, 'zombie.png')
+    ).convert_alpha()
+    imagem_zumbi = pygame.transform.smoothscale(
+        imagem_zumbi, (px(128), px(124))
+    )
+
+    return {
+        'fundo': imagem_fundo,
+        'jogador': imagem_jogador,
+        'zumbi': imagem_zumbi,
+    }
+
+
+def carregar_sons():
+    """Carrega os efeitos sonoros do jogo, se o áudio estiver disponível."""
+    if not pygame.mixer.get_init():
+        return {}
+
+    sons = {}
+    arquivos = {
+        'tiro': 'tiro.wav',
+        'impacto': 'impacto.wav',
+        'fim': 'fim_de_jogo.wav',
+    }
+    for nome, arquivo in arquivos.items():
+        caminho = os.path.join(PASTA_ASSETS, 'sounds', arquivo)
+        try:
+            sons[nome] = pygame.mixer.Sound(caminho)
+            sons[nome].set_volume(0.9)
+        except pygame.error:
+            pass
+
+    return sons
+
+
+def colidiu(objeto_a, objeto_b):
+    """Colisão entre dois círculos: distância menor que a soma dos raios."""
+    return objeto_a.posicao.distance_to(objeto_b.posicao) < objeto_a.raio + objeto_b.raio
+
+
+def posicao_nascimento_zumbi(posicao_jogador):
+    """Sorteia um ponto em uma das 4 bordas (fora da tela), longe do jogador."""
+    while True:
+        borda = random.choice(['cima', 'baixo', 'esquerda', 'direita'])
+        if borda == 'cima':
+            ponto = (random.uniform(0, LARGURA), -px(RAIO_ZUMBI))
+        elif borda == 'baixo':
+            ponto = (random.uniform(0, LARGURA), ALTURA + px(RAIO_ZUMBI))
+        elif borda == 'esquerda':
+            ponto = (-px(RAIO_ZUMBI), random.uniform(0, ALTURA))
+        else:
+            ponto = (LARGURA + px(RAIO_ZUMBI), random.uniform(0, ALTURA))
+        if pygame.math.Vector2(ponto).distance_to(posicao_jogador) > px(DISTANCIA_SEGURA_SPAWN):
+            return ponto
+
+
+def salvar_pontuacao(nome, pontos):
+    """Acrescenta 'nome;pontos' no arquivo (cria o arquivo se não existir).
+    A ordem das linhas guarda a ordem cronológica, usada no desempate."""
+    with open(ARQUIVO_PONTOS, 'a', encoding='utf-8') as arquivo:
+        arquivo.write(f'{nome};{pontos}\n')
+
+
+def carregar_ranking(quantidade=5):
+    """Lê o arquivo e devolve os melhores jogadores (melhor pontuação de cada nome)."""
+    if not os.path.exists(ARQUIVO_PONTOS):
+        open(ARQUIVO_PONTOS, 'w', encoding='utf-8').close()
+        return []
+    melhores = {}  # nome -> (pontos, ordem em que atingiu essa pontuação)
+    with open(ARQUIVO_PONTOS, 'r', encoding='utf-8') as arquivo:
+        for ordem, linha in enumerate(arquivo):
+            linha = linha.strip()
+            if ';' not in linha:
+                continue
+            nome, pontos_texto = linha.rsplit(';', 1)
+            try:
+                pontos = int(pontos_texto)
+            except ValueError:
+                continue
+            # Só substitui se for ESTRITAMENTE maior: assim, empatando consigo
+            # mesmo, vale a primeira vez que o jogador atingiu a pontuação
+            if nome not in melhores or pontos > melhores[nome][0]:
+                melhores[nome] = (pontos, ordem)
+    # Ordena por pontos (decrescente) e, no empate, por quem atingiu antes
+    lista = sorted(melhores.items(), key=lambda item: (-item[1][0], item[1][1]))
+    return [(nome, dados[0]) for nome, dados in lista[:quantidade]]
+
+
+def desenhar_fundo(tela, imagem_fundo):
+    """Desenha o cenário ilustrado no lugar da grade simples."""
+    tela.blit(imagem_fundo, (0, 0))
+
+
+def escrever_centralizado(tela, texto, fonte, cor, y):
+    superficie = fonte.render(texto, True, cor)
+    tela.blit(superficie, superficie.get_rect(center=(LARGURA / 2, px(y))))
+
+
+def escrever_titulo(tela, texto, fonte, cor, y):
+    """Desenha título legível sobre uma faixa escura translúcida."""
+    faixa = pygame.Surface((LARGURA - px(64), px(94)), pygame.SRCALPHA)
+    pygame.draw.rect(faixa, (8, 14, 12, 190), faixa.get_rect(), border_radius=px(14))
+    pygame.draw.rect(faixa, (106, 151, 92, 210), faixa.get_rect(), px(2), border_radius=px(14))
+    tela.blit(faixa, faixa.get_rect(center=(LARGURA / 2, px(y))))
+
+    superficie = fonte.render(texto, True, cor)
+    retangulo = superficie.get_rect(center=(LARGURA / 2, px(y)))
+    sombra = fonte.render(texto, True, (5, 10, 8))
+    tela.blit(sombra, retangulo.move(px(2), px(3)))
+    tela.blit(superficie, retangulo) 
