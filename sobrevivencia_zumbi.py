@@ -404,3 +404,80 @@ def escrever_titulo(tela, texto, fonte, cor, y):
     sombra = fonte.render(texto, True, (5, 10, 8))
     tela.blit(sombra, retangulo.move(px(2), px(3)))
     tela.blit(superficie, retangulo) 
+
+
+# ----------------------------------------------------------------------
+# Telas do jogo (cada uma devolve o próximo estado)
+# ----------------------------------------------------------------------
+def tela_nome(tela, relogio, fontes, imagem_fundo):
+    """Tela inicial: o jogador digita o nome e aperta Enter."""
+    nome = ''
+    aviso = ''
+    while True:
+        relogio.tick(FPS)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                return SAIR, ''
+            if evento.type == pygame.KEYDOWN:
+                if evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    if nome.strip():
+                        return JOGO, nome.strip()
+                    aviso = 'Digite um nome antes de começar!'
+                elif evento.key == pygame.K_BACKSPACE:
+                    nome = nome[:-1]
+                elif evento.key == pygame.K_ESCAPE:
+                    return SAIR, ''
+            if evento.type == pygame.TEXTINPUT and len(nome) < 15 and ';' not in evento.text:
+                nome += evento.text
+                aviso = ''
+
+        desenhar_fundo(tela, imagem_fundo)
+        escrever_titulo(tela, 'SOBREVIVÊNCIA ZUMBI', fontes['titulo'], (137, 235, 94), 160)
+        escrever_centralizado(tela, 'Digite seu nome e pressione Enter:', fontes['media'], BRANCO, 290)
+        caixa = pygame.Rect(0, 0, px(400), px(55))
+        caixa.center = (LARGURA / 2, px(360))
+        pygame.draw.rect(tela, PRETO, caixa, border_radius=px(8))
+        pygame.draw.rect(tela, BRANCO, caixa, px(2), border_radius=px(8))
+        cursor = '|' if pygame.time.get_ticks() // 500 % 2 == 0 else ''
+        escrever_centralizado(tela, nome + cursor, fontes['media'], BRANCO, 360)
+        if aviso:
+            escrever_centralizado(tela, aviso, fontes['pequena'], VERMELHO, 420)
+        escrever_centralizado(tela, 'WASD/setas: mover   |   Touchpad: mirar e tocar para atirar',
+                              fontes['pequena'], (180, 180, 180), 560)
+        pygame.display.flip()
+
+
+def tela_menu(tela, relogio, fontes, imagem_fundo):
+    """Explica a missão e os controles antes de começar a partida."""
+    botao_jogar = Botao('Começar (Enter)', (LARGURA / 2 - px(160), px(590)), (40, 120, 60))
+    botao_sair = Botao('Sair (Esc)', (LARGURA / 2 + px(160), px(590)), (150, 40, 40))
+    pygame.mouse.set_visible(True)
+
+    while True:
+        relogio.tick(FPS)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT or botao_sair.foi_clicado(evento):
+                return SAIR
+            if botao_jogar.foi_clicado(evento):
+                return NOME
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_ESCAPE:
+                    return SAIR
+                if evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    return NOME
+
+        desenhar_fundo(tela, imagem_fundo)
+        escrever_titulo(tela, 'SOBREVIVÊNCIA ZUMBI', fontes['titulo'], (137, 235, 94), 100)
+        escrever_centralizado(tela, 'São 3 fases, com duração de 30 segundos cada.',
+                              fontes['media'], BRANCO, 220)
+        escrever_centralizado(tela, 'Elimine o maior número de zumbis e sobreviva até o fim.',
+                              fontes['media'], BRANCO, 270)
+        escrever_centralizado(tela, 'COMO JOGAR', fontes['grande'], DOURADO, 365)
+        escrever_centralizado(tela, 'WASD ou setas: movimentar', fontes['media'], BRANCO, 420)
+        escrever_centralizado(tela, 'Touchpad: mirar e tocar/pressionar para atirar',
+                              fontes['media'], BRANCO, 465)
+        escrever_centralizado(tela, 'Enter: começar   |   Esc: sair',
+                              fontes['pequena'], (210, 210, 210), 520)
+        botao_jogar.desenhar(tela, fontes['pequena'])
+        botao_sair.desenhar(tela, fontes['pequena'])
+        pygame.display.flip()
