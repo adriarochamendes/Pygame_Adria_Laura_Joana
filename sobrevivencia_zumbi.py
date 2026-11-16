@@ -593,3 +593,103 @@ def tela_jogo(tela, relogio, fontes, nome_jogador, imagens, sons):
         if tempo_partida - tempo_mudanca_fase < 2:
             escrever_centralizado(tela, f'FASE {fase_atual}', fontes['grande'], DOURADO, 110)
         pygame.display.flip()
+
+
+def tela_fim(tela, relogio, fontes, nome_jogador, pontos, imagem_fundo, venceu):
+    """Mostra o resultado da partida, o ranking e as opções de continuação."""
+    ranking = carregar_ranking(5)
+    botao_jogar = Botao('Jogar novamente (Enter)', (LARGURA / 2 - px(160), px(620)), (40, 120, 60))
+    botao_sair = Botao('Sair (Esc)', (LARGURA / 2 + px(160), px(620)), (150, 40, 40))
+    pygame.mouse.set_visible(True)
+
+    while True:
+        relogio.tick(FPS)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT or botao_sair.foi_clicado(evento):
+                return SAIR
+            if botao_jogar.foi_clicado(evento):
+                return NOME
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_ESCAPE:
+                    return SAIR
+                if evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    return NOME
+
+        desenhar_fundo(tela, imagem_fundo)
+        if venceu:
+            escrever_titulo(tela, 'VOCÊ SOBREVIVEU!', fontes['titulo'], (137, 235, 94), 80)
+            escrever_centralizado(tela, 'Você completou as três fases!', fontes['media'], BRANCO, 145)
+        else:
+            escrever_titulo(tela, 'FIM DE JOGO', fontes['titulo'], VERMELHO, 80)
+            escrever_centralizado(tela, 'Os zumbis alcançaram você.', fontes['media'], BRANCO, 145)
+        escrever_centralizado(tela, f'{nome_jogador}, zumbis eliminados: {pontos}', fontes['media'], BRANCO, 190)
+        escrever_centralizado(tela, 'TOP 5', fontes['grande'], DOURADO, 245)
+        if not ranking:
+            escrever_centralizado(tela, 'Nenhum resultado ainda.', fontes['media'], BRANCO, 310)
+        for posicao, (nome, pts) in enumerate(ranking, start=1):
+            y = px(285 + (posicao - 1) * 45)
+            cor = DOURADO if nome == nome_jogador else BRANCO
+            tela.blit(fontes['media'].render(f'{posicao}º  {nome}', True, cor), (LARGURA / 2 - px(200), y))
+            texto_pts = fontes['media'].render(str(pts), True, cor)
+            tela.blit(texto_pts, (LARGURA / 2 + px(200) - texto_pts.get_width(), y))
+        botao_jogar.desenhar(tela, fontes['pequena'])
+        botao_sair.desenhar(tela, fontes['pequena'])
+        pygame.display.flip()
+
+
+# ----------------------------------------------------------------------
+# Programa principal: máquina de estados que alterna entre as telas
+# ----------------------------------------------------------------------
+def main():
+    global LARGURA, ALTURA, ESCALA_TELA
+    pygame.mixer.pre_init(44100, -16, 1, 512)
+    pygame.init()
+    modo = pygame.display.Info()
+    try:
+        tela = pygame.display.set_mode(
+            (modo.current_w, modo.current_h), pygame.FULLSCREEN
+        )
+    except pygame.error:
+        tela = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    LARGURA, ALTURA = tela.get_size()
+    ESCALA_TELA = ALTURA / ALTURA_BASE
+    pygame.display.set_caption('Sobrevivência Zumbi')
+    imagens = carregar_imagens()
+    sons = carregar_sons()
+    relogio = pygame.time.Clock()
+    fontes = {
+        'titulo': pygame.font.SysFont('arial', px(70), bold=True),
+        'grande': pygame.font.SysFont('arial', px(58), bold=True),
+        'media': pygame.font.SysFont('arial', px(42), bold=True),
+        'pequena': pygame.font.SysFont('arial', px(30)),
+    }
+    carregar_ranking()  # garante que o arquivo exista desde o início
+
+    estado = MENU
+    nome_jogador = ''
+    pontos = 0
+    while estado != SAIR:
+        if estado == MENU:
+            estado = tela_menu(tela, relogio, fontes, imagens['fundo'])
+        elif estado == NOME:
+            pygame.mouse.set_visible(True)
+            pygame.key.start_text_input()
+            estado, nome_jogador = tela_nome(tela, relogio, fontes, imagens['fundo'])
+        elif estado == JOGO:
+            pygame.key.stop_text_input()
+            pygame.mouse.set_visible(False)  # a mira desenhada acompanha o touchpad
+            estado, pontos = tela_jogo(tela, relogio, fontes, nome_jogador, imagens, sons)
+            if estado in (FIM, VITORIA):
+                salvar_pontuacao(nome_jogador, pontos)
+        elif estado in (FIM, VITORIA):
+            pygame.mouse.set_visible(True)
+            estado = tela_fim(
+                tela, relogio, fontes, nome_jogador, pontos,
+                imagens['fundo'], estado == VITORIA
+            )
+
+    pygame.quit()
+
+
+if _name_ == '_main_':
+    main()
