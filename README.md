@@ -10,8 +10,11 @@ Jogo de sobrevivência com visão de cima, desenvolvido em Python com Pygame. O 
 
 ## Como instalar e executar
 
+O jogo foi desenvolvido em Python 3 e utiliza a biblioteca Pygame. A dependência está registrada em `requirements.txt` e pode ser instalada com:
 
-
+```bash
+py -m pip install -r requirements.txt
+```
 
 ## Controles
 
@@ -26,7 +29,7 @@ Cada fase dura 30 segundos. Na fase 1, surge um zumbi por horda a cada 1,6 segun
 
 ## Recursos e créditos
 
-
+O jogo utiliza três imagens na pasta assets: o cenário (background.png), o personagem controlado pelo jogador (player.png) e o zumbi (zombie.png). Os efeitos sonoros de disparo, impacto e fim de jogo estão em assets/sounds. As imagens foram geradas com a ferramenta de geração de imagens do ChatGPT (OpenAI). Os efeitos sonoros foram sintetizados para o projeto com código Python, com auxílio do ChatGPT na integração. A animação de impacto é desenhada pelo próprio código, com recursos do Pygame, sem usar uma imagem externa.
 
 ## Vídeo do jogo
 
@@ -34,3 +37,4 @@ Link Video
 
 ## Uso de inteligência artificial
 
+O ChatGPT foi utilizado como ferramenta de apoio ao desenvolvimento do projeto. Auxiliou na elaboração do código do jogo, incluindo as telas, a lógica das fases, o ranking e a animação de impacto, além da integração dos recursos gráficos e sonoros. A ferramenta de geração de imagens do ChatGPT foi usada para criar o cenário e os personagens. Os efeitos sonoros foram sintetizados com código Python, também com auxílio do ChatGPT. A interação com a ferramenta será apresentada no anexo solicitado pela disciplina. 
