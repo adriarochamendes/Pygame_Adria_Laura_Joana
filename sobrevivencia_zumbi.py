@@ -481,3 +481,115 @@ def tela_menu(tela, relogio, fontes, imagem_fundo):
         botao_jogar.desenhar(tela, fontes['pequena'])
         botao_sair.desenhar(tela, fontes['pequena'])
         pygame.display.flip()
+
+def tela_jogo(tela, relogio, fontes, nome_jogador, imagens, sons):
+    """Partida em três fases; devolve vitória ou fim de jogo com a pontuação."""
+    jogador = Jogador(imagens['jogador'])
+    zumbis = pygame.sprite.Group()
+    tiros = pygame.sprite.Group()
+    efeitos_impacto = []
+    pontos = 0
+    tempo_partida = 0.0
+    tempo_ate_proximo_zumbi = 1.0
+    fase_atual = 1
+    tempo_mudanca_fase = 0.0
+
+    while True:
+        dt = relogio.tick(FPS) / 1000  # segundos desde o último quadro
+        dt = min(dt, 0.05)             # evita "saltos" se a janela travar
+
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                return SAIR, pontos
+            if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
+                return SAIR, pontos
+
+        teclas = pygame.key.get_pressed()
+        jogador.atualizar(dt, teclas)
+
+        # Manter o touchpad pressionado dispara com a cadência definida.
+        if pygame.mouse.get_pressed()[0] and jogador.pode_atirar():
+            tiros.add(jogador.atirar())
+            if 'tiro' in sons:
+                sons['tiro'].play()
+
+        # Cada fase dura 30 segundos e aumenta a velocidade e a frequência das hordas.
+        tempo_partida += dt
+        if tempo_partida >= NUMERO_FASES * DURACAO_FASE:
+            return VITORIA, pontos
+
+        fase = int(tempo_partida // DURACAO_FASE) + 1
+        if fase != fase_atual:
+            fase_atual = fase
+            tempo_mudanca_fase = tempo_partida
+
+        # A cada fase, os zumbis ficam mais rápidos e as hordas maiores.
+        intervalos_por_fase = (1.6, 1.0, 0.65)
+        velocidades_por_fase = (90, 130, 175)
+        limites_por_fase = (8, 14, 22)
+        quantidades_por_horda = (1, 1, 2)
+        intervalo_nascimento = intervalos_por_fase[fase - 1]
+        velocidade_zumbi = velocidades_por_fase[fase - 1]
+        quantidade_por_horda = quantidades_por_horda[fase - 1]
+        tempo_ate_proximo_zumbi -= dt
+        if tempo_ate_proximo_zumbi <= 0:
+            for _ in range(quantidade_por_horda):
+                if len(zumbis) >= limites_por_fase[fase - 1]:
+                    break
+                posicao = posicao_nascimento_zumbi(jogador.posicao)
+                variacao = random.uniform(0.9, 1.1)
+                zumbis.add(Zumbi(posicao, px(velocidade_zumbi) * variacao, imagens['zumbi']))
+            tempo_ate_proximo_zumbi = intervalo_nascimento
+
+        # Atualiza posições
+        for zumbi in zumbis:
+            zumbi.atualizar(dt, jogador.posicao)
+        for tiro in tiros:
+            tiro.atualizar(dt)
+        for efeito in efeitos_impacto:
+            efeito.atualizar(dt)
+        efeitos_impacto = [efeito for efeito in efeitos_impacto if not efeito.terminou()]
+
+        # Colisão tiro x zumbi: cada tiro some ao acertar e cada zumbi vale 1 ponto só
+        for tiro in list(tiros):
+            for zumbi in list(zumbis):
+                if colidiu(tiro, zumbi):
+                    tiro.kill()
+                    efeitos_impacto.append(EfeitoImpacto(zumbi.posicao, tiro.direcao))
+                    zumbi.kill()  # removido do grupo => não pode pontuar de novo
+                    pontos += 1
+                    if 'impacto' in sons:
+                        sons['impacto'].play()
+                    break
+
+        # Colisão zumbi x jogador: fim imediato
+        for zumbi in zumbis:
+            if colidiu(zumbi, jogador):
+                if 'fim' in sons:
+                    sons['fim'].play()
+                return FIM, pontos
+
+        # Desenho
+        desenhar_fundo(tela, imagens['fundo'])
+        for tiro in tiros:
+            tiro.desenhar(tela)
+        for zumbi in zumbis:
+            zumbi.desenhar(tela)
+        for efeito in efeitos_impacto:
+            efeito.desenhar(tela)
+        jogador.desenhar(tela)
+        # A mira acompanha o touchpad.
+        mx, my = pygame.mouse.get_pos()
+        pygame.draw.circle(tela, BRANCO, (mx, my), px(8), px(1))
+        pygame.draw.line(tela, BRANCO, (mx - px(12), my), (mx + px(12), my), px(1))
+        pygame.draw.line(tela, BRANCO, (mx, my - px(12)), (mx, my + px(12)), px(1))
+        # Painel com nome e pontuação
+        tela.blit(fontes['media'].render(f'Jogador: {nome_jogador}', True, BRANCO), (px(15), px(10)))
+        tela.blit(fontes['media'].render(f'Pontos: {pontos}', True, DOURADO), (px(15), px(45)))
+        fase_txt = fontes['media'].render(f'Fase {fase}/{NUMERO_FASES}', True, DOURADO)
+        tela.blit(fase_txt, (LARGURA - fase_txt.get_width() - px(15), px(45)))
+        tempo_txt = fontes['pequena'].render(f'Tempo: {int(tempo_partida)} s', True, BRANCO)
+        tela.blit(tempo_txt, (LARGURA - tempo_txt.get_width() - px(15), px(15)))
+        if tempo_partida - tempo_mudanca_fase < 2:
+            escrever_centralizado(tela, f'FASE {fase_atual}', fontes['grande'], DOURADO, 110)
+        pygame.display.flip()
