@@ -33,7 +33,7 @@ O jogo utiliza três imagens na pasta assets: o cenário (background.png), o per
 
 ## Vídeo do jogo
 
-Link Video
+https://youtu.be/tQuypMHsldo?feature=shared
 
 ## Uso de inteligência artificial
 
